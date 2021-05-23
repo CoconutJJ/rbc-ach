@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RBC ACH File Conversion Tool</title>
+        <link type="text/css" rel="stylesheet" href="style.css"/>
+        <script src="app.js"></script>
+    </head>
+    <body>
+        <h1>RBC ACH File Conversion Tool</h1>
+
+        <table border="1">
+            <tr>
+                <td>
+                    <label>Input Files (.xlsx)</label>
+                    <button id="in-file">Select Files</button>
+                </td>
+                <td>
+                    <b>Selected Files:</b>
+                    <ul id="in-file-list"></ul>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <label>Output Directory</label>
+                    <button id="out-dir">Select Directory</button>
+                </td>
+                <td>
+                    <b>Selected Directory:</b>
+                    <ul id="out-file-list"></ul>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <label>File Export Type</label>
+                </td>
+                <td>
+                    <select id="export-type">
+                        <option value="D">PAP</option>
+                        <option value="C">PDS</option>
+                    </select>
+                </td>
+            </tr>
+        </table>
+        <br><br>
+        <button type="button" id="convert-btn">Convert</button>
+        <br><br>
+        <h3>Log</h3>
+        <p>
+            File conversion progress will be shown below..
+        </p>
+        <ul id="progress"></ul>
+    </body>
+</html>
