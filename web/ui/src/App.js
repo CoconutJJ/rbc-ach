@@ -13,6 +13,25 @@ function App() {
     setFiles(e.target.files);
   };
 
+  let download_as_file = (data, filename) => {
+    let dataURL = window.URL.createObjectURL(
+      new Blob([data], { type: "text/plain" })
+    );
+
+    let link = document.createElement("a");
+
+    link.style.display = "none";
+    link.href = dataURL;
+    link.download = filename;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    window.URL.revokeObjectURL(dataURL);
+    link.parentElement.removeChild(link);
+  };
+
   let convert = () => {
     let xhttp = new XMLHttpRequest();
 
@@ -23,24 +42,10 @@ function App() {
     }
 
     xhttp.onload = () => {
-      let a = document.createElement("a");
-      let url = window.URL.createObjectURL(
-        new Blob([xhttp.responseText], { type: "text/plain" })
-      );
-      a.style.display = "none";
-      a.href = url;
-      a.download = files[0].name + ".txt";
-
-      document.body.appendChild(a);
-
-      a.click();
-
-      window.URL.revokeObjectURL(url);
-      a.parentElement.removeChild(a);
+      download_as_file(xhttp.responseText, files[0].name);
     };
 
     let url = "/convert?convtype=" + recordType;
-
 
     xhttp.open("POST", url, true);
     xhttp.send(formdata);
@@ -56,7 +61,7 @@ function App() {
         <p>
           This is a conversion tool that converts .CSV files into the CPA-005
           specification. It supports the Debit (PAP-PAD) and Credit (PDS)
-          specifications. This
+          specifications.
         </p>
         <p>
           PDS Specification:{" "}
