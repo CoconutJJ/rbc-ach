@@ -1,9 +1,9 @@
-use crate::lib::types::{CurrencyType, ProcessingCentre, RecordType};
-use crate::lib::payment::{BasicPayment, BasicPaymentSegment};
 use crate::lib::header::CPA005Record;
+use crate::lib::payment::{BasicPayment, BasicPaymentSegment};
+use crate::lib::types::{CurrencyType, ProcessingCentre, RecordType};
+use chrono::{Datelike, NaiveDate};
 use csv::{Reader, ReaderBuilder, StringRecord};
 use serde::Deserialize;
-use chrono::{Datelike, NaiveDate};
 
 fn validate_csv_header<'a>(
     rdr: &'a mut Reader<&[u8]>,

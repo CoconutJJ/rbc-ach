@@ -12,8 +12,7 @@ A CSV template is included in the project root directory. It is suggested you op
 The web version is written in Rust and uses React for the browser UI. Unlike
 traditional web servers, the compiled executable (the web server) is portable - 
 all the necessary HTML, CSS and JavaScript for the UI is stored in the 
-executable itself at compile time. This means once the executable has been compiled,
-it is completely independent of this codebase and can be moved anywhere.
+executable itself at compile time. This means once the executable has been compiled, it is completely independent of this codebase and can be moved anywhere.
 
 This code implements the following specifications:
 - ACH Direct Payments (PAP-PAD) Service Canadian Payments Association CPA-005 Debit File Format Specifications

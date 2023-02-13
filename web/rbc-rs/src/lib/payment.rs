@@ -64,7 +64,10 @@ impl BasicPaymentSegment {
         return Ok(());
     }
 
-    pub fn set_financial_institution_branch_number(&mut self, no: String) -> Result<(), &'static str> {
+    pub fn set_financial_institution_branch_number(
+        &mut self,
+        no: String,
+    ) -> Result<(), &'static str> {
         if no.parse::<u64>().is_err() {
             return Err("Branch number must be 5 digits");
         }

@@ -42,7 +42,7 @@ function App() {
     }
 
     xhttp.onload = () => {
-      download_as_file(xhttp.responseText, files[0].name);
+      download_as_file(xhttp.responseText, files[0].name + ".txt");
     };
 
     let url = "/convert?convtype=" + recordType;
