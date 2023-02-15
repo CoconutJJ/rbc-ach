@@ -1,3 +1,4 @@
+use crate::lib::error::ErrorLog;
 use crate::lib::header::CPA005Record;
 use crate::lib::payment::{BasicPayment, BasicPaymentSegment};
 use crate::lib::types::{CurrencyType, ProcessingCentre, RecordType};
@@ -15,7 +16,7 @@ fn validate_csv_header<'a>(
         Ok(true) => (),
         _ => {
             return Err(format!(
-                "Could not record CSV header record {}\n",
+                "Could not read CSV header record: {}\n",
                 header_name
             ))
         }
@@ -70,6 +71,7 @@ impl CSVHeader {
 }
 
 fn parse_dollar_amount_to_cents(amount: &String) -> Option<u64> {
+
     let mut sanitized_amount = String::new();
 
     for c in amount.chars() {
@@ -104,20 +106,20 @@ struct CSVRow {
     _total: String,
 }
 
-pub fn convert_to_cpa005(csv: String, record_type: RecordType) -> Result<String, String> {
+pub fn convert_to_cpa005(csv: String, record_type: RecordType) -> Result<String, ErrorLog> {
     let mut rdr = ReaderBuilder::new()
         .has_headers(false)
         .from_reader(csv.as_bytes());
 
     let mut csv_header = CSVHeader::new();
-    let mut errors = String::new();
+    let mut errors = ErrorLog::new();
 
     match validate_csv_header(&mut rdr, "Client Name") {
         Ok(s) => {
             csv_header.client_name = s.to_string();
         }
         Err(s) => {
-            errors.push_str(s.as_str());
+            errors.write_error(s.as_str());
         }
     }
 
@@ -126,7 +128,7 @@ pub fn convert_to_cpa005(csv: String, record_type: RecordType) -> Result<String,
             csv_header.client_number = s;
         }
         Err(s) => {
-            errors.push_str(s.as_str());
+            errors.write_error(s.as_str());
         }
     }
 
@@ -141,7 +143,7 @@ pub fn convert_to_cpa005(csv: String, record_type: RecordType) -> Result<String,
                 "00390" => ProcessingCentre::Calgary,
                 "00300" => ProcessingCentre::Vancouver,
                 s => {
-                    errors.push_str(
+                    errors.write_error(
                         format!("Invalid Processing Centre: {} specified in CSV header\n", s)
                             .as_str(),
                     );
@@ -150,7 +152,7 @@ pub fn convert_to_cpa005(csv: String, record_type: RecordType) -> Result<String,
             }
         }
         Err(s) => {
-            errors.push_str(s.as_str());
+            errors.write_error(s.as_str());
         }
     }
 
@@ -160,7 +162,7 @@ pub fn convert_to_cpa005(csv: String, record_type: RecordType) -> Result<String,
                 "CAD" => CurrencyType::CAD,
                 "USD" => CurrencyType::USD,
                 s => {
-                    errors.push_str(
+                    errors.write_error(
                         format!("Invalid Currency Code: {} specified in CSV header\n", s).as_str(),
                     );
                     CurrencyType::CAD
@@ -168,7 +170,7 @@ pub fn convert_to_cpa005(csv: String, record_type: RecordType) -> Result<String,
             }
         }
         Err(s) => {
-            errors.push_str(s.as_str());
+            errors.write_error(s.as_str());
         }
     }
 
@@ -177,13 +179,13 @@ pub fn convert_to_cpa005(csv: String, record_type: RecordType) -> Result<String,
             csv_header.payment_date = match NaiveDate::parse_from_str(s.as_str(), "%Y/%m/%d") {
                 Ok(d) => (d.year() as u64, d.ordinal() as u64),
                 Err(s) => {
-                    errors.push_str(format!("Could not parse payment date. Date should be in the form of YYYY/MM/DD: {}\n", s.to_string().as_str()).as_str());
+                    errors.write_error(format!("Could not parse payment date. Date should be in the form of YYYY/MM/DD: {}\n", s.to_string().as_str()).as_str());
                     (0, 0)
                 }
             };
         }
         Err(s) => {
-            errors.push_str(s.as_str());
+            errors.write_error(s.as_str());
         }
     }
 
@@ -192,35 +194,26 @@ pub fn convert_to_cpa005(csv: String, record_type: RecordType) -> Result<String,
             csv_header.transaction_code = s;
         }
         Err(s) => {
-            errors.push_str(s.as_str());
+            errors.write_error(s.as_str());
         }
     }
 
     let mut cpa005_record = CPA005Record::new();
 
-    match cpa005_record.set_client_number(csv_header.client_number.clone()) {
-        Ok(()) => (),
-        Err(s) => errors.push_str(s),
-    }
-
-    cpa005_record.set_destination_currency_code(csv_header.currency_code);
-
-    match cpa005_record.set_file_creation_number(1) {
-        Ok(()) => (),
-        Err(s) => errors.push_str(s),
-    }
-    match cpa005_record.set_file_creation_date(2023, 1) {
-        Ok(()) => (),
-        Err(s) => errors.push_str(s),
-    }
+    cpa005_record
+        .set_client_number(csv_header.client_number.clone())
+        .set_destination_currency_code(csv_header.currency_code)
+        .set_file_creation_number(1)
+        .set_file_creation_date(2023, 1);
 
     for rec in rdr.records().skip(1) {
         let mut payment = BasicPayment::new();
+        payment.record_type = record_type;
 
         let rec = match rec {
             Ok(rec) => rec,
             Err(e) => {
-                errors.push_str(e.to_string().as_str());
+                errors.write_error(e.to_string().as_str());
                 continue;
             }
         };
@@ -228,100 +221,60 @@ pub fn convert_to_cpa005(csv: String, record_type: RecordType) -> Result<String,
         let row: CSVRow = match rec.deserialize(None) {
             Ok(s) => s,
             Err(e) => {
-                errors.push_str(e.to_string().as_str());
+                errors.write_error(e.to_string().as_str());
                 continue;
             }
         };
+
+        if row.customer_number.trim().len() == 0 {
+            continue;
+        }
 
         if row.suspend.trim().to_ascii_uppercase() == "Y" {
             continue;
         }
 
-        payment.record_type = record_type;
-
-        match payment.set_client_number(csv_header.client_number.clone()) {
-            Ok(_) => (),
-            Err(s) => {
-                errors.push_str(s);
-                break;
-            }
-        };
+        payment.set_client_number(csv_header.client_number.clone());
 
         let mut payment_segment = BasicPaymentSegment::new();
 
-        match payment_segment.set_transaction_code(csv_header.transaction_code.clone()) {
-            Ok(_) => (),
-            Err(s) => {
-                errors.push_str(s);
-                break;
-            }
-        }
-        match payment_segment.set_client_name(csv_header.client_name.clone()) {
-            Ok(()) => (),
-            Err(s) => errors.push_str(s),
-        }
-        match payment_segment.set_customer_number(row.customer_number) {
-            Ok(()) => (),
-            Err(s) => errors.push_str(s),
-        }
-        match payment_segment.set_customer_name(row.customer_name) {
-            Ok(()) => (),
-            Err(s) => errors.push_str(s),
-        }
-        match payment_segment.set_financial_institution_number(row.bank) {
-            Ok(()) => (),
-            Err(s) => errors.push_str(s),
-        }
-        match payment_segment.set_financial_institution_branch_number(row.branch) {
-            Ok(()) => (),
-            Err(s) => errors.push_str(s),
-        }
-        match payment_segment.set_account_number(row.account) {
-            Ok(()) => (),
-            Err(s) => errors.push_str(s),
-        }
-        match payment_segment.set_payment_date(csv_header.payment_date.0, csv_header.payment_date.1)
-        {
-            Ok(()) => (),
-            Err(s) => errors.push_str(s),
-        }
-        match payment_segment.set_client_number(csv_header.client_number.clone()) {
-            Ok(()) => (),
-            Err(s) => errors.push_str(s),
-        }
+        payment_segment
+            .set_transaction_code(csv_header.transaction_code.clone())
+            .set_client_name(csv_header.client_name.clone())
+            .set_customer_number(row.customer_number)
+            .set_customer_name(row.customer_name)
+            .set_financial_institution_number(row.bank)
+            .set_financial_institution_branch_number(row.branch)
+            .set_account_number(row.account)
+            .set_payment_date(csv_header.payment_date.0, csv_header.payment_date.1)
+            .set_client_number(csv_header.client_number.clone())
+            .set_client_short_name(if csv_header.client_name.len() > 15 {
+                csv_header.client_name[0..15].to_string()
+            } else {
+                csv_header.client_name.to_string()
+            })
+            .set_amount(match parse_dollar_amount_to_cents(&row.amount) {
+                Some(d) => d,
+                None => {
+                    errors.write_error(
+                        format!("Failed to parse payment amount: {}", row.amount).as_str(),
+                    );
+                    continue;
+                }
+            });
 
-        let short_name: &str;
-
-        if csv_header.client_name.len() > 15 {
-            short_name = &csv_header.client_name[0..15];
-        } else {
-            short_name = &csv_header.client_name;
-        }
-
-        match payment_segment.set_client_short_name(short_name.to_string()) {
-            Ok(()) => (),
-            Err(s) => errors.push_str(s),
-        }
-
-        match parse_dollar_amount_to_cents(&row.amount) {
-            Some(d) => match payment_segment.set_amount(d) {
-                Ok(()) => (),
-                Err(s) => errors.push_str(s),
-            },
-            None => {
-                errors.push_str(format!("Failed to parse payment amount: {}", row.amount).as_str());
-                continue;
-            }
-        };
+        payment.error_log.merge_log(&payment_segment.error_log);
+        cpa005_record.error_log.merge_log(&payment.error_log);
 
         payment.segments.push(payment_segment);
-
         cpa005_record.add_basic_payment(payment);
     }
 
-    if errors.len() == 0 {
-        return Ok(cpa005_record.build());
+    errors.merge_log(&cpa005_record.error_log);
+
+    if errors.has_errors() {
+        Ok(cpa005_record.build())
     } else {
-        return Err(errors);
+        Err(errors)
     }
 }

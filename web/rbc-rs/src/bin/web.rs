@@ -30,17 +30,22 @@ async fn convert(mut body: Multipart, q: web::Query<ConvertRequestQuery>) -> Htt
     }
 
     let cpa_format = match q.convtype.trim() {
-        "PDS" => convert_to_cpa005(file_data, RecordType::Credit).unwrap(),
-        "PAD" => convert_to_cpa005(file_data, RecordType::Debit).unwrap(),
+        "PDS" => convert_to_cpa005(file_data, RecordType::Credit),
+        "PAD" => convert_to_cpa005(file_data, RecordType::Debit),
         _ => {
             return HttpResponse::BadRequest().finish();
         }
     };
 
-    HttpResponse::Ok()
-        .content_type(ContentType::plaintext())
-        .insert_header(ContentDisposition::attachment(file_name))
-        .body(cpa_format)
+    match cpa_format {
+        Ok(s) => HttpResponse::Ok()
+            .content_type(ContentType::plaintext())
+            .insert_header(ContentDisposition::attachment(file_name))
+            .body(s),
+        Err(log) => HttpResponse::BadRequest()
+            .content_type(ContentType::plaintext())
+            .body(log.to_string()),
+    }
 }
 
 #[get("/")]

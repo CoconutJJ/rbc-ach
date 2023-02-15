@@ -1,6 +1,6 @@
+use super::error::ErrorLog;
 use super::types::RecordType;
 use super::utils::n_digits;
-
 pub struct BasicPaymentSegment {
     pub transaction_code: String,
     pub amount: u64,
@@ -14,6 +14,7 @@ pub struct BasicPaymentSegment {
     pub client_number: String,
     pub customer_number: String,
     pub client_sundry_information: String,
+    pub error_log: ErrorLog,
 }
 impl BasicPaymentSegment {
     pub fn new() -> Self {
@@ -30,124 +31,155 @@ impl BasicPaymentSegment {
             client_number: String::new(),
             customer_number: String::new(),
             client_sundry_information: String::new(),
+            error_log: ErrorLog::new(),
         }
     }
 
-    pub fn set_transaction_code(&mut self, code: String) -> Result<(), &'static str> {
+    pub fn set_transaction_code(&mut self, code: String) -> &mut Self {
         if code.len() != 3 {
-            return Err("Transaction code must be 3 digits");
+            self.error_log.write_error(
+                format!(
+                    "Transaction code must be 3 digits, received {} instead",
+                    self.transaction_code
+                )
+                .as_str(),
+            );
+            return self;
         }
 
         self.transaction_code = code;
 
-        Ok(())
+        self
     }
 
-    pub fn set_amount(&mut self, cents: u64) -> Result<(), &'static str> {
+    pub fn set_amount(&mut self, cents: u64) -> &mut Self {
         self.amount = cents;
 
-        Ok(())
+        self
     }
 
-    pub fn set_payment_date(&mut self, year: u64, day: u64) -> Result<(), &'static str> {
+    pub fn set_payment_date(&mut self, year: u64, day: u64) -> &mut Self {
         if day == 0 {
-            return Err("Payment Date Day number is 0");
+            self.error_log.write_error("Payment Date Day number is 0");
+            return self;
         }
 
         self.payment_date = (year % 100, day);
-        Ok(())
+
+        self
     }
 
-    pub fn set_financial_institution_number(&mut self, no: String) -> Result<(), &'static str> {
+    pub fn set_financial_institution_number(&mut self, no: String) -> &mut Self {
         self.financial_institution_number = format!("{:0>4}", no);
 
-        return Ok(());
+        self
     }
 
-    pub fn set_financial_institution_branch_number(
-        &mut self,
-        no: String,
-    ) -> Result<(), &'static str> {
+    pub fn set_financial_institution_branch_number(&mut self, no: String) -> &mut Self {
         if no.parse::<u64>().is_err() {
-            return Err("Branch number must be 5 digits");
+            self.error_log.write_error("Branch number must be 5 digits");
+            return self;
         }
 
         self.financial_institution_branch_number = format!("{:0>5}", no);
-        return Ok(());
+
+        self
     }
 
-    pub fn set_account_number(&mut self, account_no: String) -> Result<(), &'static str> {
+    pub fn set_account_number(&mut self, account_no: String) -> &mut Self {
         for c in account_no.chars() {
             if !c.is_ascii_digit() {
-                return Err("Account number must only include digits");
+                self.error_log
+                    .write_error("Account number must only include digits");
+                return self;
             }
         }
 
         if account_no.len() > 12 {
-            return Err("Account number cannot exceed 12 digits");
+            self.error_log
+                .write_error("Account number cannot exceed 12 digits");
+            return self;
         }
 
         self.account_number = account_no;
-        return Ok(());
+
+        self
     }
 
-    pub fn set_client_short_name(&mut self, short_name: String) -> Result<(), &'static str> {
+    pub fn set_client_short_name(&mut self, short_name: String) -> &mut Self {
         if short_name.len() > 15 {
-            return Err("Client Short Name must not exceed 15 characters");
+            self.error_log
+                .write_error("Client Short Name must not exceed 15 characters");
+            return self;
         }
 
         self.client_short_name = short_name;
 
-        Ok(())
+        self
     }
 
-    pub fn set_customer_name(&mut self, customer_name: String) -> Result<(), &'static str> {
+    pub fn set_customer_name(&mut self, customer_name: String) -> &mut Self {
         if customer_name.len() > 30 {
-            return Err("Customer Name must not exceed 30 characters");
+            self.error_log
+                .write_error("Customer Name must not exceed 30 characters");
+            return self;
         }
 
         self.customer_name = customer_name;
-        Ok(())
+        self
     }
 
-    pub fn set_client_name(&mut self, client_name: String) -> Result<(), &'static str> {
+    pub fn set_client_name(&mut self, client_name: String) -> &mut Self {
         if client_name.len() > 30 {
-            return Err("Client Name must not exceed 30 characters");
+            self.error_log
+                .write_error("Client Name must not exceed 30 characters");
+            return self;
         }
+
         self.client_name = client_name;
-        Ok(())
+
+        self
     }
 
-    pub fn set_client_number(&mut self, client_number: String) -> Result<(), &'static str> {
+    pub fn set_client_number(&mut self, client_number: String) -> &mut Self {
         if client_number.len() != 10 {
-            return Err("Client number must be exactly 10 numeric digits long");
+            self.error_log
+                .write_error("Client number must be exactly 10 numeric digits long");
+            return self;
         }
 
         if client_number.parse::<u64>().is_err() {
-            return Err("Client number must not contain non-numeric digits");
+            self.error_log
+                .write_error("Client number must not contain non-numeric digits");
+            return self;
         }
 
         self.client_number = client_number;
 
-        return Ok(());
+        self
     }
 
-    pub fn set_customer_number(&mut self, customer_number: String) -> Result<(), &'static str> {
+    pub fn set_customer_number(&mut self, customer_number: String) -> &mut Self {
         if customer_number.len() > 19 {
-            return Err("Customer number must not exceed 19 characters");
+            self.error_log
+                .write_error("Customer number must not exceed 19 characters");
+            return self;
         }
         self.customer_number = customer_number;
-        Ok(())
+
+        self
     }
 
-    pub fn set_customer_sundry_information(&mut self, info: String) -> Result<(), &'static str> {
+    pub fn set_customer_sundry_information(&mut self, info: String) -> &mut Self {
         if self.client_sundry_information.len() > 15 {
-            return Err("Client Sundry Information must not exceed 15 characters");
+            self.error_log
+                .write_error("Client Sundry Information must not exceed 15 characters");
+            return self;
         }
 
         self.client_sundry_information = info;
 
-        Ok(())
+        self
     }
 
     pub fn build(&self) -> String {
@@ -224,6 +256,7 @@ pub struct BasicPayment {
     pub client_number: String,
     pub file_creation_number: u32,
     pub segments: Vec<BasicPaymentSegment>,
+    pub error_log: ErrorLog,
 }
 
 impl BasicPayment {
@@ -234,27 +267,32 @@ impl BasicPayment {
             client_number: String::new(),
             file_creation_number: 0,
             segments: Vec::new(),
+            error_log: ErrorLog::new(),
         }
     }
 
-    pub fn set_client_number(&mut self, client_number: String) -> Result<(), &'static str> {
+    pub fn set_client_number(&mut self, client_number: String) -> &mut Self {
         if client_number.parse::<u64>().is_err() {
-            return Err("Client number must be exactly 10 numeric digits long");
+            self.error_log
+                .write_error("Client number must be exactly 10 numeric digits long");
+            return self;
         }
 
         self.client_number = client_number;
 
-        return Ok(());
+        self
     }
 
-    pub fn set_file_creation_number(&mut self, no: u32) -> Result<(), &'static str> {
+    pub fn set_file_creation_number(&mut self, no: u32) -> &mut Self {
         if n_digits(no) > 4 {
-            return Err("File creation number exceeds 4 digits");
+            self.error_log
+                .write_error("File creation number exceeds 4 digits");
+            return self;
         }
 
         self.file_creation_number = no;
 
-        return Ok(());
+        self
     }
 
     pub fn build(&self) -> String {

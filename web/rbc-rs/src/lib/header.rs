@@ -1,3 +1,4 @@
+use super::error::ErrorLog;
 use super::payment::BasicPayment;
 use super::types::{CurrencyType, ProcessingCentre, RecordType};
 use super::utils::n_digits;
@@ -13,6 +14,7 @@ pub struct CPA005Record {
     pub total_credit_amount: u64,
     pub total_credit_count: u64,
     pub basic_payment: Vec<BasicPayment>,
+    pub error_log: ErrorLog,
 }
 
 // PDS Format: https://www.rbcroyalbank.com/ach/file-451771.pdf
@@ -30,6 +32,7 @@ impl CPA005Record {
             total_credit_amount: 0,
             total_credit_count: 0,
             basic_payment: Vec::new(),
+            error_log: ErrorLog::new(),
         }
     }
 
@@ -39,7 +42,7 @@ impl CPA005Record {
         return self.current_record_no;
     }
 
-    pub fn add_basic_payment(&mut self, mut payment: BasicPayment) {
+    pub fn add_basic_payment(&mut self, mut payment: BasicPayment) -> &mut Self {
         payment.record_count = self._allocate_record_no();
 
         match payment.record_type {
@@ -71,44 +74,55 @@ impl CPA005Record {
         }
 
         self.basic_payment.push(payment);
+
+        self
     }
 
-    pub fn set_client_number(&mut self, client_number: String) -> Result<(), &'static str> {
+    pub fn set_client_number(&mut self, client_number: String) -> &mut Self {
         if client_number.parse::<u64>().is_err() {
-            return Err("Client number must be exactly 10 numeric digits long");
+            self.error_log
+                .write_error("Client number must be exactly 10 numeric digits long");
+            return self;
         }
 
         self.client_number = client_number;
 
-        return Ok(());
+        self
     }
 
-    pub fn set_file_creation_number(&mut self, no: u32) -> Result<(), &'static str> {
+    pub fn set_file_creation_number(&mut self, no: u32) -> &mut Self {
         if n_digits(no) > 4 {
-            return Err("File creation number exceeds 4 digits");
+            self.error_log
+                .write_error("File creation number exceeds 4 digits");
+            return self;
         }
 
         self.file_creation_number = no;
 
-        return Ok(());
+        self
     }
 
-    pub fn set_file_creation_date(&mut self, year: u32, day: u32) -> Result<(), &'static str> {
+    pub fn set_file_creation_date(&mut self, year: u32, day: u32) -> &mut Self {
         if n_digits(year) > 4 {
-            return Err("File Creation Date: Year number exceeds 4 digits");
+            self.error_log
+                .write_error("File Creation Date: Year number exceeds 4 digits");
+            return self;
         }
 
         if n_digits(day) > 3 {
-            return Err("File Creation Date: Day number exceeds 4 digits");
+            self.error_log
+                .write_error("File Creation Date: Day number exceeds 4 digits");
+            return self;
         }
 
         self.file_creation_date = (year, day);
 
-        return Ok(());
+        self
     }
 
-    pub fn set_destination_currency_code(&mut self, t: CurrencyType) {
+    pub fn set_destination_currency_code(&mut self, t: CurrencyType) -> &mut Self {
         self.destination_currency_code = t;
+        self
     }
 
     pub fn build_trailer_record(&self) -> String {

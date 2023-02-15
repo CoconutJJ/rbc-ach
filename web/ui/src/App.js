@@ -9,6 +9,8 @@ function App() {
 
   let [recordType, setRecordType] = useState(null);
 
+  let [log, setLog] = useState("");
+
   let onFileChange = (e) => {
     setFiles(e.target.files);
   };
@@ -40,9 +42,17 @@ function App() {
     for (let i = 0; i < files.length; i++) {
       formdata.append("file", files[i]);
     }
-
+    xhttp.onerror = () => {
+      setLog(xhttp.responseText);
+    };
     xhttp.onload = () => {
-      download_as_file(xhttp.responseText, files[0].name + ".txt");
+      if (xhttp.status == 200) {
+        setLog("Conversion Successful! Downloading converted .txt file...");
+        download_as_file(xhttp.responseText, files[0].name + ".txt");
+      } else {
+        setLog(xhttp.responseText);
+      }
+
     };
 
     let url = "/convert?convtype=" + recordType;
@@ -122,7 +132,14 @@ function App() {
             </td>
           </tr>
         </table>
-
+        <h3>Log</h3>
+        <p>
+          A conversion log will be shown here, if there are CSV
+          formatting/sanity check errors, they will also appear here. They are
+          shown in the hope that the end user will have an easier time
+          correcting the CSV file.
+        </p>
+        <textarea rows="30" value={log} disabled></textarea>
         <p>
           The first version of this tool was a desktop application I wrote in
           about half a day, the UI was generally horrible and the code (in
@@ -137,7 +154,7 @@ function App() {
             </li>
             <li>
               This tool is much more portable and self-contained. There is only
-              one program executable does not require external dependencies
+              one program executable and it does not require external dependencies
               apart from a web browser.
             </li>
             <li>The codebase is cleanly written and maintainable</li>

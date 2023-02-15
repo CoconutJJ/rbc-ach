@@ -4,3 +4,9 @@ body {
     margin-right: 5%;
     font-family: 'Noto Serif';
 }
+
+textarea {
+    width: 100%;
+    resize: vertical;
+    font-family: monospace;
+}
