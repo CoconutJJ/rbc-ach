@@ -1,7 +1,10 @@
+use std::process::exit;
+
 use actix_multipart::Multipart;
 use actix_web::http::header::{ContentDisposition, ContentType};
 use actix_web::{get, post, web, App, HttpResponse, HttpServer};
-use futures::{StreamExt, TryStreamExt};
+use futures::{future, StreamExt, TryStreamExt};
+use open::that;
 use serde::Deserialize;
 
 #[path = "../lib/mod.rs"]
@@ -50,13 +53,27 @@ async fn convert(mut body: Multipart, q: web::Query<ConvertRequestQuery>) -> Htt
 
 #[get("/")]
 async fn index() -> HttpResponse {
-    HttpResponse::Ok().body(include_str!("../../../ui/dist/index.html"))
+    HttpResponse::Ok().body(include_str!("../index.html"))
+}
+
+async fn start_client() {
+    match open::that("http://localhost:8080") {
+        Ok(_) => (),
+        Err(_) => exit(1),
+    }
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| App::new().service(index).service(convert))
+    let server = HttpServer::new(|| App::new().service(index).service(convert))
         .bind(("0.0.0.0", 8080))?
-        .run()
-        .await
+        .run();
+
+    let (result, _) = future::join(server, start_client()).await;
+
+    if result.is_err() {
+        exit(1);
+    }
+
+    return Ok(());
 }
