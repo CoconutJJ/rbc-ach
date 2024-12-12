@@ -6,9 +6,10 @@ use csvconv::types::RecordType;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
+
 #[tauri::command]
-fn convert(filename: Vec<&str>, record_type: &str, outputDirectory: &str) -> String {
-    let mut error = String::new();
+fn convert(filename: Vec<&str>, record_type: &str, output_directory: &str) -> Vec<String> {
+    let mut errors = Vec::<String>::new();
 
     for s in filename {
         let csv_file = File::open(s);
@@ -33,25 +34,28 @@ fn convert(filename: Vec<&str>, record_type: &str, outputDirectory: &str) -> Str
                             Path::new(&s).file_stem().unwrap().to_str().unwrap()
                         );
 
-                        let outfile = File::create(Path::new(outputDirectory).join(&outfile_name));
+                        let outfile = File::create(Path::new(output_directory).join(&outfile_name));
 
                         match outfile {
                             Ok(mut f) => {
                                 f.write_all(s.as_bytes());
                             }
-                            Err(e) => error.push_str(format!("error: cannot write output file {}: {}", &outfile_name, e).as_str()),
+                            Err(e) => errors.push(format!(
+                                "error: cannot write output file {}: {}",
+                                &outfile_name, e
+                            )),
                         };
                     }
-                    Err(e) => error.push_str(e.to_string().as_str()),
+                    Err(e) => errors.extend(e.get_error_list()),
                 }
             }
             Err(e) => {
-                return e.to_string();
+                errors.push(e.to_string());
             }
         }
     }
 
-    return error;
+    return errors;
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -22,4 +22,8 @@ impl ErrorLog {
     pub fn to_string(&self) -> String {
         self.errors.join("\n")
     }
+
+    pub fn get_error_list(&self) -> Vec<String> {
+        return self.errors.clone();
+    }
 }

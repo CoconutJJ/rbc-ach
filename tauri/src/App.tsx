@@ -14,7 +14,7 @@ function App() {
   let [inputFiles, setInputFiles] = useState([]);
   let [recordType, setRecordType] = useState("PDS");
   let [outputDir, setOutputDir] = useState("");
-  let [response, setResponse] = useState("");
+  let [response, setResponse] = useState([]);
 
   let removeDuplicates = (L: string[]) => {
     let unique = [];
@@ -49,32 +49,66 @@ function App() {
   };
 
   let onConvert = async () => {
-    let errorCount = 0;
-
+    let errorMessages = []
     if (inputFiles.length == 0) {
-      setResponse("Must select at least 1 input file.\n");
-      errorCount++;
+      errorMessages.push("Must select at least 1 input file.");
     }
 
     if (outputDir.trim().length == 0) {
-      setResponse("Must select an output directory.\n");
+      errorMessages.push("Must select an output directory.");
     }
 
-    if (errorCount > 0) return;
+    if (errorMessages.length > 0) {
+      setResponse(errorMessages);
+      return;
+    }
 
     let data = await invoke("convert", {
       filename: inputFiles,
       recordType: recordType,
       outputDirectory: outputDir,
-    });
+    }) as string[];
 
-    setResponse(data as string);
+    setResponse([...data]);
   };
 
   return (
     <main className="container">
-      <h1>RBC Automated Clearing House Conversion Tool (v3.0)</h1>
+      <h1>RBC Automated Clearing House: CSV to CPA-005 Conversion Tool (v3.0)</h1>
       <p>Author: David Yue</p>
+      <p>
+          This is a conversion tool that converts .CSV files into the CPA-005
+          specification. It supports the Debit (PAP-PAD) and Credit (PDS)
+          specifications.
+        </p>
+        <p>
+          PDS Specification:{" "}
+          <a
+            className="text-blue-500"
+            href="https://www.rbcroyalbank.com/ach/file-451770.pdf"
+          >
+            https://www.rbcroyalbank.com/ach/file-451770.pdf
+          </a>
+        </p>
+        <p>
+          PAP-PAD Specification:{" "}
+          <a
+            className="text-blue-500"
+            href="https://www.rbcroyalbank.com/ach/file-451771.pdf"
+          >
+            https://www.rbcroyalbank.com/ach/file-451771.pdf
+          </a>
+        </p>
+
+        <p>
+          To export a .CSV file from a Google Sheets Document: File &gt;
+          Download &gt; Comma Seperated Values (.csv)
+        </p>
+        <p>
+          Excel Files with extensions of .xlsx and .xls are not supported.
+          Although Excel should allow you to export to a .csv file. Renaming a
+          .xlsx or .xls extension to .csv file will NOT work.
+        </p>
       <div className="body">
         <div className="left">
           <form>
@@ -119,7 +153,9 @@ function App() {
         </div>
         <div className="right">
           <h3>Log</h3>
-          {response}
+          {response.map((v) => (
+            <li>{v}</li>
+          ))}
         </div>
       </div>
       <div>
