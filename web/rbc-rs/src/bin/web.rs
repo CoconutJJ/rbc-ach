@@ -53,27 +53,22 @@ async fn convert(mut body: Multipart, q: web::Query<ConvertRequestQuery>) -> Htt
 
 #[get("/")]
 async fn index() -> HttpResponse {
-    HttpResponse::Ok().body(include_str!("../../../ui/dist/index.html"))
+    HttpResponse::Ok().body(include_str!("../../index.html"))
 }
 
-async fn start_client() {
-    match open::that("http://localhost:8080") {
-        Ok(_) => (),
-        Err(_) => exit(1),
-    }
-}
+// async fn start_client() {
+//     match open::that("http://localhost:8080") {
+//         Ok(_) => (),
+//         Err(_) => exit(1),
+//     }
+// }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+
     let server = HttpServer::new(|| App::new().service(index).service(convert))
         .bind(("0.0.0.0", 8080))?
-        .run();
-
-    let (result, _) = future::join(server, start_client()).await;
-
-    if result.is_err() {
-        exit(1);
-    }
+        .run().await;
 
     return Ok(());
 }
