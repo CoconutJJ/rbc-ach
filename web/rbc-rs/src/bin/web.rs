@@ -53,7 +53,7 @@ async fn convert(mut body: Multipart, q: web::Query<ConvertRequestQuery>) -> Htt
 
 #[get("/")]
 async fn index() -> HttpResponse {
-    HttpResponse::Ok().body(include_str!("../index.html"))
+    HttpResponse::Ok().body(include_str!("../../../ui/dist/index.html"))
 }
 
 async fn start_client() {
